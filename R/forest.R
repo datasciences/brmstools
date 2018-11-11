@@ -74,11 +74,11 @@ forest <- function(model,
                                     samples_sum[[grouping]])
   # Create text intervals
   samples_sum[["Interval"]] <- paste0(
-    round(samples_sum[["Estimate"]], digits),
+    format(round(samples_sum[["Estimate"]], digits), nsmall = digits),
     " [",
-    round(samples_sum[[lwr]], digits),
+    format(round(samples_sum[[lwr]], digits), nsmall = digits),
     ", ",
-    round(samples_sum[[upr]], digits), "]"
+    format(round(samples_sum[[upr]], digits), nsmall = digits), "]"
   )
   # Order effects
   if (sort) samples_sum <- dplyr::arrange_(samples_sum, "type", "Parameter", "Estimate")
