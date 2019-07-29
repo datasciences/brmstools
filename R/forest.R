@@ -43,6 +43,8 @@ forest <- function(model,
                    digits = 2,
                    theme_forest = TRUE) {
 
+  .Deprecated("tidybayes")
+
   # Requires the ggridges package
   if (!requireNamespace("ggridges", quietly = TRUE)) {
     stop(

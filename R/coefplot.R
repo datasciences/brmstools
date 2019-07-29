@@ -35,6 +35,8 @@ coefplot <- function(model,
                      r_alpha = .5,
                      ...) {
 
+  .Deprecated("tidybayes")
+
   grouping <- get_grouping(model, grouping)
   d <- tidycoef(model,
                 grouping = grouping,

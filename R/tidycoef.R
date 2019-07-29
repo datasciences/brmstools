@@ -21,6 +21,8 @@ tidycoef <- function(model,
                      summary = FALSE,
                      level = .95) {
 
+  .Deprecated("tidybayes")
+
   grouping <- get_grouping(model, grouping)
   if (is.na(pars)) {
     parameters <- dimnames(coef(model)[[grouping]])[[3]]

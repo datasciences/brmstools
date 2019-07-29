@@ -14,62 +14,127 @@ knitr::opts_chunk$set(
 ```
 # brmstools
 
-brmstools is an R package [available on GitHub](https://github.com/mvuorre/brmstools). 
+brmstools was an R package that provided one-liners for drawing figures from regression models fitted with the [brms package](https://github.com/paul-buerkner/brms).
 
-brmstools provides convenient plotting and post-processing functions for brmsfit objects (bayesian regression models fitted with the [brms R package](https://github.com/paul-buerkner/brms)). 
+**The package is no longer maintained**: Its functionality can be replicated by using native functions from the brms package and functions from the [tidybayes package](https://github.com/mjskay/tidybayes). Example code for reproducing brmstools' figures is shown below.
 
-brmstools is in beta version so will probably break down with some inputs: [Suggestions for improvements and bug reports](https://github.com/mvuorre/brmstools/issues) are welcomed. For anything more complex I strongly recommend using brms' native functions instead (particularly its `marginal_effects()` and `hypothesis()` methods. Combined with ggplot2 those functions will create any visualization you can think of.)
-
-# Install brmstools
-
-Install brmstools from GitHub with [devtools](https://cran.r-project.org/package=devtools):
-
-```{r, eval = F}
-# install.packages("devtools")
-devtools::install_github("mvuorre/brmstools")
-```
-
-Loading brmstools also loads the brms package:
+# Required packages
 
 ```{r}
-library(brmstools)
+library(brms)
+library(tidyverse)
+library(tidybayes)  # https://github.com/mjskay/tidybayes
+library(ggridges)  # https://github.com/clauswilke/ggridges
 ```
 
 # Forest plots
 
-Notably, `forest()` draws forest plots for meta-analytic and multilevel models:
+After fitting a meta-analytic model, creating a forest plot is easy with tidybayes and ggridges.
 
-```{r forest, echo=-1}
-load(here::here("vignettes/forest-plots/fit_rem.rda"))
-forest(fit_rem)
+First, fit a meta-analytic model with some example data from the [metafor](https://github.com/wviechtb/metafor) package.
+
+```{r}
+data("dat.bangertdrowns2004", package = "metafor")
+dat <- dat.bangertdrowns2004 %>%
+  mutate(study = paste0(author, " (", year, ")"), sei = sqrt(vi)) %>%
+  select(study, yi, sei) %>%
+  slice(1:15)
+dat$study <- str_replace(dat$study, ",", "")  # Remove commas in study names
+fit_rem <- brm(
+  yi | se(sei) ~ 1 + (1|study),
+  data = dat,
+  cores = 4, 
+  control=list(adapt_delta = .99),
+  file = "fit-rem"
+)
 ```
+
+For an explanation of `tidybayes::spread_draws()`, refer to <http://mjskay.github.io/tidybayes/articles/tidy-brms.html>.
+
+```{r}
+# Study-specific effects are deviations + average
+out_r <- spread_draws(fit_rem, r_study[study,term], b_Intercept) %>% 
+  mutate(b_Intercept = r_study + b_Intercept) 
+# Average effect
+out_f <- spread_draws(fit_rem, b_Intercept) %>% 
+  mutate(study = "Average")
+# Combine average and study-specific effects' data frames
+out_all <- bind_rows(out_r, out_f) %>% 
+  ungroup() %>%
+  # Ensure that Average effect is on the bottom of the forest plot
+  mutate(study = fct_relevel(study, "Average"))
+# Data frame of summary numbers
+out_all_sum <- group_by(out_all, study) %>% 
+      mean_qi(b_Intercept)
+# Draw plot
+out_all %>%   
+  ggplot(aes(b_Intercept, study)) +
+  geom_density_ridges(
+    rel_min_height = 0.01, 
+    col = NA,
+    scale = 1
+  ) +
+  geom_pointintervalh(
+    data = out_all_sum, size = 1
+  ) +
+  geom_text(
+    data = mutate_if(out_all_sum, is.numeric, round, 2),
+    # Use glue package to combine strings
+    aes(label = glue::glue("{b_Intercept} [{.lower}, {.upper}]"), x = Inf),
+    hjust = "inward"
+  )
+```
+
 
 # Panel plots
 
-`panels()` draws panel plots:
+First, fit a multilevel model to multiple subjects' data
 
-```{r panels, echo=-1}
-load(here::here("vignettes/forest-plots/fit_ml.rda"))
-panels(fit_ml, xvar = "Days")
+```{r}
+data(sleepstudy, package = "lme4")
+fit_ml <- brm(
+  Reaction ~ Days + (Days|Subject),
+  data = sleepstudy,
+  cores = 4,
+  file = "fit-ml"
+)
+```
+
+Draw a panel plot using `brms::marginal_effects()`
+
+```{r}
+marginal_effects(
+  fit_ml,
+  "Days", 
+  conditions = distinct(sleepstudy, Subject),
+  re_formula = NULL
+  )
 ```
 
 # Spaghetti plots
 
-`spaghetti()` draws spaghetti plots:
-
-```{r spaghetti}
-spaghetti(fit_ml, xvar = "Days")
-```
-
-# Coefficient plots
-
-`coefplot()` draws coefficient plots:
+Spaghetti plot combines `marginal_effects()` of the random and fixed effects' regression lines.
 
 ```{r}
-coefplot(fit_ml)
+out_f <- marginal_effects(
+  fit_ml,
+  "Days"
+  )[[1]]
+out_r <- marginal_effects(
+  fit_ml,
+  "Days", 
+  conditions = distinct(sleepstudy, Subject),
+  re_formula = NULL
+  )[[1]]
+out_r %>% 
+  ggplot(aes(Days, estimate__)) +
+  geom_ribbon(
+    data = out_f,
+    aes(ymin = lower__, ymax = upper__),
+    alpha = .33
+  ) +
+  geom_line(data = out_f, size = 2) +
+  geom_line(aes(group = Subject))
 ```
 
-# More information
-
-Examples and instructions can be found at <https://mvuorre.github.io/brmstools>.
 
