@@ -17,6 +17,8 @@ tidyfitted <- function(model,
                        xvar = NA,
                        level = .95, ...) {
 
+  .Deprecated("tidybayes")
+
   grouping <- get_grouping(model, grouping)
 
   # By default, use all predictor terms

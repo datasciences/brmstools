@@ -32,6 +32,8 @@ panels <- function(model,
                    ribbon_alpha = .2,
                    ...) {
 
+  .Deprecated("marginal_effects")
+
   grouping <- get_grouping(model, grouping)
   d <- tidyfitted(model, level = level, grouping = grouping, ...)
   d <- d[d[["type"]]=="r",]

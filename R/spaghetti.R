@@ -30,6 +30,8 @@ spaghetti <- function(model,
                       average = T,
                       ...) {
 
+  .Deprecated("marginal_effects")
+
   grouping <- get_grouping(model, grouping)
   d <- tidyfitted(model, level = level, grouping = grouping)
   probs <- c(.5 - level / 2, .5 + level / 2)
